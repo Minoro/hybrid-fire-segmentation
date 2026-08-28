@@ -59,8 +59,8 @@ DEVICES = [1]
 SPECTRALGPT_WEIGHTS_PATH = None
 
 LANDSAT_DATASET_PATH = '/dataset/Landsat/'
-LANDSAT_ANNOTATION_FOLDER = 'GROUNDTRUTH_GABRIEL_patches_cp'
-LANDSAT_IMG_FOLDER = 'IMG_all_patches'
+LANDSAT_ANNOTATION_FOLDER = 'manual_annotations_patches'
+LANDSAT_IMG_FOLDER = 'landsat_patches'
 LANDSAT_BANDS = (7,6,5)
 LANDSAT_QUANTIFICATION = 65535.0
 
@@ -75,15 +75,11 @@ SENTINEL_DATAFRAME_PATH =  '/hybrid-fire-segmentation/resources/dataframes/folds
 LANDSAT_SENTINEL_DATAFRAME_PATH = '/hybrid-fire-segmentation/resources/dataframes/folds/landsat-sentinel/landsat-sentinel_folds.csv'
 
 
-LOG_DIR = '/hybrid-fire-segmentation/resources/logs/index-branch'
-
+LOG_DIR = '/hybrid-fire-segmentation/resources/index-branch/logs/'
 if BACKBONE is not None:
-    LOG_DIR += f'-backbone-{BACKBONE}'
+    LOG_DIR = os.path.join(LOG_DIR, f'{BACKBONE}_with_index-branch')
 else:
-    LOG_DIR += f'-threshold-only'
-
-if NUM_SENSORS_THREHOLD_EQUATIONS > 1:
-    LOG_DIR += f'-num-sensors-{NUM_SENSORS_THREHOLD_EQUATIONS}'
+    LOG_DIR = os.path.join(LOG_DIR, 'index-branch')
 
 
 class RandomFlipRotate:
@@ -791,82 +787,6 @@ def evaluate_numpy_rule(module, test_dataset):
     return precision, recall, f1, cm, None
 
 
-
-def evaluate_blob_module(module, test_dataset, iou_threshold=0.5):
-    """
-    Avalia módulo completo (backbone + branch) usando análise de blobs (connected components).
-    Assume que cada sample contém ['image', 'mask', 'sensor_id'].
-    Usa análise de blobs (connected components) para calcular métricas por-objeto.
-    """
-    module.eval()
-    all_preds = []
-    all_gts = []
-
-    with torch.no_grad():
-        for i in tqdm(range(len(test_dataset)), total=len(test_dataset)):
-            sample = test_dataset[i]
-            img = sample['image'].numpy().transpose(1,2,0)  # (H,W,3)
-            gt = sample['mask'].numpy().squeeze(0)          # (H,W)
-            sensor_id = int(sample['domain_id'])     # 0 = Sentinel, 1 = Landsat (por exemplo)
-
-            # processa imagem pelo módulo completo
-            img_tensor = sample['image'].unsqueeze(0).to(module.device)  # (1,3,H,W)
-            domain_id_tensor = torch.tensor([sensor_id], device=module.device)
-            with torch.no_grad():
-                out = module(img_tensor, domain_id=domain_id_tensor)
-                pred_prob = out['fused_prob'].squeeze(0).squeeze(0).cpu().numpy()  # (H,W) float [0,1]
-
-            # binariza (threshold fixo, pode calibrar depois)
-            pred_bin = (pred_prob > 0.5).astype(np.uint8)
-
-            # connected components para ground truth e predição
-            gt_labeled, num_gt = label(gt)
-            pred_labeled, num_pred = label(pred_bin)
-
-            # calcula IoU entre cada par de blobs
-            iou_matrix = np.zeros((num_gt, num_pred), dtype=np.float32)
-
-            for gt_idx in range(1, num_gt + 1):
-                gt_blob = (gt_labeled == gt_idx).astype(np.uint8)
-                for pred_idx in range(1, num_pred + 1):
-                    pred_blob = (pred_labeled == pred_idx).astype(np.uint8)
-                    intersection = np.logical_and(gt_blob, pred_blob).sum()
-                    union = np.logical_or(gt_blob, pred_blob).sum()
-                    if union > 0:
-                        iou_matrix[gt_idx - 1, pred_idx - 1] = intersection / union
-
-            # determina matches com base no IoU threshold
-            matched_gt = set()
-            matched_pred = set()
-            for gt_idx in range(num_gt):
-                for pred_idx in range(num_pred):
-                    if iou_matrix[gt_idx, pred_idx] >= iou_threshold:
-                        matched_gt.add(gt_idx)
-                        matched_pred.add(pred_idx)
-            # tp = len(matched_gt)
-            # fp = num_pred - len(matched_pred)
-            # fn = num_gt - len(matched_gt)
-            # calcula métricas
-            # precision = tp / (tp + fp) if (tp + fp) >
-            # recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-            # f1 = 2 * (precision * recall) / (precision + recall)
-            all_preds.append(pred_bin.flatten())
-            all_gts.append((gt > 0.5).astype(np.uint8).flatten())
-        
-        all_preds = np.concatenate(all_preds)
-        all_gts = np.concatenate(all_gts)
-        print("[DEBUG] Valores únicos em all_gts:", np.unique(all_gts))
-        print("[DEBUG] Valores únicos em all_preds:", np.unique(all_preds))
-        # Garante que os valores estão no intervalo esperado (0 ou 1)
-        assert set(np.unique(all_gts)).issubset({0, 1}), "all_gts contém valores inesperados!"
-        assert set(np.unique(all_preds)).issubset({0, 1}), "all_preds contém valores inesperados!"
-
-        precision = precision_score(all_gts, all_preds, zero_division=0)
-        recall = recall_score(all_gts, all_preds, zero_division=0)
-        f1 = f1_score(all_gts, all_preds, zero_division=0)
-        cm = confusion_matrix(all_gts, all_preds)
-
-    return precision, recall, f1, cm, None
 
 
 def save_results_to_file(file_path, dataset_name, final_metrics, precision, recall, f1, cm_matrix):

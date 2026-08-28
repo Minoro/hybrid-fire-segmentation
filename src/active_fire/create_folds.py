@@ -21,7 +21,7 @@ LANDSAT_ANNOTATIONS_PATH = '/hybrid-fire-segmentation/dataset/Landsat/manual_ann
 SATELLITE = 'landsat-sentinel' # 'sentinel', 'landsat', 'landsat-sentinel'
 
 
-CSV_NUM_FIRE_PIXELS_PER_PATCH_PATH = f'./dataframes/num_fire_and_ember_pixels_per_patch_{SATELLITE}_gdal.csv'
+CSV_NUM_FIRE_PIXELS_PER_PATCH_PATH = f'/hybrid-fire-segmentation/resources/dataframes/num_fire_and_ember_pixels_per_patch_{SATELLITE}_gdal.csv'
 OVERRIDE_CSV_NUM_FIRE_PIXELS_PER_PATCH = True
 
 NUM_FOLDS = 5
@@ -29,7 +29,7 @@ RANDOM_SEED = 1
 STRATIFIED_FOLDS = False
 GENERATE_VALIDATION_FOLD = True
 
-CSV_FOLDS_BASE_PATH = f'./dataframes/folds/{SATELLITE}'
+CSV_FOLDS_BASE_PATH = f'/hybrid-fire-segmentation/resources/dataframes/folds/{SATELLITE}'
 
 
 OUTPUT_CSV_NAME = f'{SATELLITE}_folds.csv'

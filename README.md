@@ -99,3 +99,11 @@ python index_branch.py
 ```
 
 Inside the script you can adjust the hyperparameters, such as the learning rate, batch size, number of epochs, and the fold to be used for training.
+
+
+## Pre-trained Models
+
+We provide pre-trained models for the proposed method and the baselines, which can be downloaded from the following links:
+ - Google Drive: [link](https://drive.google.com/drive/folders/1rl0OPb6mQ9Ndgk1x6X3ipdNOJRCSwjAq?usp=drive_link)
+
+Download the folder weights and place it in the `resources` folder, in the respective log sub-folder.

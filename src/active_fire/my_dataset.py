@@ -19,9 +19,6 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 
-
-
-
 class MultiSatelliteDataset(Dataset):
     
     def __init__(self, csv_file, root_dir_map, mask_folder_map, img_folder_map, bands_map, quantification_map, fold=1, set='train', transform=None, means_stds=None):
